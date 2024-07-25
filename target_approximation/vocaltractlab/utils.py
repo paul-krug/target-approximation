@@ -45,3 +45,15 @@ ms_file_extensions = [
     '.yaml.gz',
     '.ms',
     ]
+
+def _glottis_params_from_vtl_tractseq( index ):
+    if (index > 7) and (index % 2 == 0):
+        return False
+    else:
+        return True
+
+def _tract_params_from_vtl_tractseq( index ):
+    if (index > 7) and ((index-1) % 2 == 0):
+        return False
+    else:
+        return True

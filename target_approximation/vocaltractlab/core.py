@@ -9,6 +9,8 @@ from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
 from target_approximation.vocaltractlab.utils import supraglottal_tiers as vtl_sg_tiers
 from target_approximation.vocaltractlab.utils import glottal_tiers as vtl_g_tiers
 from target_approximation.vocaltractlab.utils import ms_file_extensions
+from target_approximation.vocaltractlab.utils import _tract_params_from_vtl_tractseq
+from target_approximation.vocaltractlab.utils import _glottis_params_from_vtl_tractseq
 
 from target_approximation.core import TargetSequence
 from target_approximation.core import TargetSeries
@@ -132,6 +134,34 @@ class MotorSeries( TargetSeries ):
                 f'Unsupported file extension: {file_path}'
                 )
         return cls( mss, sr = sr )
+    
+    @classmethod
+    def from_vtl_tractseq(
+            cls,
+            path: str,
+            sr = None,
+            ):
+        if sr is None:
+            sr = 44100/110
+        df_vtp = pd.read_csv(
+            path,
+            delim_whitespace = True,
+            skiprows= lambda x: _tract_params_from_vtl_tractseq(x),
+            header = None,
+            )
+        df_glp = pd.read_csv(
+            path,
+            delim_whitespace = True,
+            skiprows= lambda x: _glottis_params_from_vtl_tractseq(x),
+            header = None,
+            )
+        x = np.concatenate( [
+            df_vtp.to_numpy(),
+            df_glp.to_numpy(),
+            ],
+            axis = 1,
+            )
+        return cls( x, sr = sr )
     
     def tract( self ):
         x = self.series[ vtl_sg_tiers[ self.sg_set ] ]

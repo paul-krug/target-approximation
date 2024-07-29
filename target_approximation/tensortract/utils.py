@@ -47,7 +47,7 @@ supraglottal_tiers = dict(
 
 glottal_tiers = dict(
     default = [
-        #'F0',
+        'F0',
         'PR',
         'XB',
         #'XT',

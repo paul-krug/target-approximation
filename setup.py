@@ -10,7 +10,7 @@ install_requires = [
 
 setup(
     name='target-approximation',
-    version='0.0.2',
+    version='0.0.3',
     description='Python implementation of the Target-Approximation-Model.',
     author='Paul Krug',
     url='https://github.com/paul-krug/target-approximation',

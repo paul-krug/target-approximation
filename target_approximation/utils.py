@@ -69,7 +69,7 @@ def get_plot(
     #    gridspec_kw = gridspec_kw = {'hspace': 0}
     #else:
     #    gridspec_kw = {}
-    if axs == None:
+    if axs is None:
         figure, axs = plt.subplots(
             n_rows,
             n_columns,
@@ -112,7 +112,7 @@ def get_valid_tiers(
     types = str,
     ):
     #container = check_if_list_is_valid( container, str )
-    if parameters == None:
+    if parameters is None:
         valid_parameters = container
     else:
         parameters = check_if_list_is_valid( parameters, types )

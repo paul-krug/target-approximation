@@ -21,6 +21,8 @@ from target_approximation.utils import state_plot_kwargs
 from target_approximation.utils import finalize_plot
 from target_approximation.utils import get_plot
 from target_approximation.utils import get_plot_limits
+from target_approximation.utils import state_hist_kwargs
+from target_approximation.utils import get_valid_tiers
 
 
 
@@ -756,7 +758,7 @@ class TargetSeries():
             x = x.T
         return x
     
-    '''
+    
     def plot(
             self,
             plot_type = 'trajectory',
@@ -776,8 +778,9 @@ class TargetSeries():
             plot_kwargs = state_hist_kwargs,
             **kwargs
             ):
-        parameters = get_valid_tiers( parameters, self.tiers )
-        n_rows = math.ceil( len( parameters ) / n_columns )
+        parameters = get_valid_tiers( parameters, self.tiers() )
+        n_rows = np.ceil( len( parameters ) / n_columns ).astype(int)
+        #if axs is None:
         figure, axs = get_plot(
             n_rows = n_rows,
             n_columns = n_columns,
@@ -786,6 +789,8 @@ class TargetSeries():
             sharey = True,
             gridspec_kw = {},
             )
+        #else:
+        #    figure = None
         index_row = 0
         index_col = 0
         for index, parameter in enumerate( parameters ):
@@ -798,37 +803,38 @@ class TargetSeries():
             index_col += 1
         #for ax in axs:
         #    ax.label_outer()
+        #if figure is not None:
         finalize_plot( figure, axs, hide_labels = False, **kwargs )
         return axs
 
-    def plot_trajectories(
-            self,
-            parameters = None,
-            axs = None,
-            time = 'seconds',
-            plot_kwargs = state_plot_kwargs,
-            **kwargs,
-            ):
-        parameters = get_valid_tiers( parameters, self.tiers )
-        #constants = vtl.get_constants()
-        figure, axs = get_plot( n_rows = len( parameters ), axs = axs )
-        for index, parameter in enumerate( parameters ):
-            y = self[ parameter ]
-            x = np.array( range( 0, len( y ) ) )
-            if time == 'seconds':
-                #x = x / constants[ 'samplerate_internal' ]
-                x = x / (44100/110)
-            axs[ index ].plot( x, y, **plot_kwargs.get( parameter ) )
-            axs[ index ].set( ylabel = parameter, ylim = get_plot_limits( y ) )
-        if time == 'seconds':
-            plt.xlabel( 'Time [s]' )
-        else:
-            plt.xlabel( 'Frame' )
-        #for ax in axs:
-        #    ax.label_outer()
-        finalize_plot( figure, axs, **kwargs )
-        return axs
-    '''
+    #def plot_trajectories(
+    #        self,
+    #        parameters = None,
+    #        axs = None,
+    #        time = 'seconds',
+    #        plot_kwargs = state_plot_kwargs,
+    #        **kwargs,
+    #        ):
+    #    parameters = get_valid_tiers( parameters, self.tiers )
+    #    #constants = vtl.get_constants()
+    #    figure, axs = get_plot( n_rows = len( parameters ), axs = axs )
+    #    for index, parameter in enumerate( parameters ):
+    #        y = self[ parameter ]
+    #        x = np.array( range( 0, len( y ) ) )
+    #        if time == 'seconds':
+    #            #x = x / constants[ 'samplerate_internal' ]
+    #            x = x / (44100/110)
+    #        axs[ index ].plot( x, y, **plot_kwargs.get( parameter ) )
+    #        axs[ index ].set( ylabel = parameter, ylim = get_plot_limits( y ) )
+    #    if time == 'seconds':
+    #        plt.xlabel( 'Time [s]' )
+    #    else:
+    #        plt.xlabel( 'Frame' )
+    #    #for ax in axs:
+    #    #    ax.label_outer()
+    #    finalize_plot( figure, axs, **kwargs )
+    #    return axs
+    
     
     def tiers( self ):
         return self.series.columns.tolist()

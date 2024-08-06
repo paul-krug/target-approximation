@@ -4,6 +4,7 @@ install_requires = [
     'matplotlib',
     'numpy',
     'pandas',
+    'resampy',
     'scipy',
     'tools-io',
     ]

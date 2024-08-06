@@ -4,9 +4,11 @@
 import os
 import gzip
 import yaml
+import resampy
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+from pathlib import Path
 
 from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
 try:
@@ -23,6 +25,7 @@ from target_approximation.utils import get_plot
 from target_approximation.utils import get_plot_limits
 from target_approximation.utils import state_hist_kwargs
 from target_approximation.utils import get_valid_tiers
+from target_approximation.utils import make_path
 
 
 
@@ -717,6 +720,25 @@ class TargetSeries():
     def __iter__( self, ):
         return iter( self.series )
     
+    def __and__( self, other ):
+        this = deepcopy( self )
+        for tier in other.tiers():
+            x = other[ tier ].to_numpy()
+            # check if f0 has the same length as the series
+            # if smaller, constant pad with last value of f0
+            # if larger, truncate
+            if len( x ) < len( this ):
+                x = np.pad(
+                    x,
+                    ( 0, len( this ) - len( x ) ),
+                    mode = 'constant',
+                    constant_values = x[ -1 ],
+                    )
+            elif len( x ) > len( this ):
+                x = x[ : len( this ) ]
+            this[ tier ] = x
+        return this
+    
     #def __add__( self, other ):
     #    return TargetSequence( self.targets + other.targets )
     
@@ -749,6 +771,57 @@ class TargetSeries():
             kwargs[ 'tiers' ] = tiers
         return cls( **kwargs )
     
+    @classmethod
+    def from_dict( cls, x ):
+        df = pd.DataFrame( x[ 'series' ] )
+        series = df.to_numpy()
+        sr = x[ 'sr' ]
+        tiers = df.columns.tolist()
+        # following line ensures that the child classes
+        # can be loaded correctly from the dict
+        tgs = TargetSeries( series, sr, tiers )
+        return cls( series = tgs )
+    
+    @classmethod
+    def from_yaml( cls, file_path ):
+        if file_path.endswith( '.yaml.gz' ):
+            with gzip.open( file_path, 'rt' ) as f:
+                x = yaml.load( f, Loader = yaml.FullLoader )
+        else:
+            with open( file_path, 'r' ) as f:
+                x = yaml.load( f, Loader = yaml.FullLoader )
+        return cls.from_dict( x )
+    
+    @classmethod
+    def load(
+            cls,
+            file_path: str,
+            sr = None,
+            ):
+        if file_path.endswith( '.npy' ):
+            if sr is None:
+                raise ValueError(
+                    f"""
+                    The sampling rate must be provided
+                    when loading a TargetSeries from a
+                    .npy file.
+                    """
+                    )
+            x = np.load( file_path )
+            return cls( x, sr )
+        elif file_path.endswith( '.yaml' ):
+            return cls.from_yaml( file_path )
+        elif file_path.endswith( '.yaml.gz' ):
+            return cls.from_yaml( file_path )
+        elif file_path.endswith( '.srs' ):
+            return cls.from_yaml( file_path, compress = True )
+        else:
+            raise ValueError(
+                f"""
+                The file extension is not supported: {file_path}
+                """
+                )
+    
     def to_numpy(
             self,
             transpose = True,
@@ -757,8 +830,7 @@ class TargetSeries():
         if transpose:
             x = x.T
         return x
-    
-    
+
     def plot(
             self,
             plot_type = 'trajectory',
@@ -806,35 +878,171 @@ class TargetSeries():
         #if figure is not None:
         finalize_plot( figure, axs, hide_labels = False, **kwargs )
         return axs
-
-    #def plot_trajectories(
-    #        self,
-    #        parameters = None,
-    #        axs = None,
-    #        time = 'seconds',
-    #        plot_kwargs = state_plot_kwargs,
-    #        **kwargs,
-    #        ):
-    #    parameters = get_valid_tiers( parameters, self.tiers )
-    #    #constants = vtl.get_constants()
-    #    figure, axs = get_plot( n_rows = len( parameters ), axs = axs )
-    #    for index, parameter in enumerate( parameters ):
-    #        y = self[ parameter ]
-    #        x = np.array( range( 0, len( y ) ) )
-    #        if time == 'seconds':
-    #            #x = x / constants[ 'samplerate_internal' ]
-    #            x = x / (44100/110)
-    #        axs[ index ].plot( x, y, **plot_kwargs.get( parameter ) )
-    #        axs[ index ].set( ylabel = parameter, ylim = get_plot_limits( y ) )
-    #    if time == 'seconds':
-    #        plt.xlabel( 'Time [s]' )
-    #    else:
-    #        plt.xlabel( 'Frame' )
-    #    #for ax in axs:
-    #    #    ax.label_outer()
-    #    finalize_plot( figure, axs, **kwargs )
-    #    return axs
     
+    def plot_trajectories(
+            self,
+            tiers = None,
+            ax = None,
+            time = 'seconds',
+            plot_kwargs = state_plot_kwargs,
+            **kwargs,
+            ):
+        if tiers is None:
+            tiers = self.tiers()
+        figure, ax = get_plot(
+            n_rows = len(tiers),
+            axs = ax
+            )
+        for idx, tier in enumerate( tiers ):
+            y = self[ tier ]
+            x = np.array( range( 0, len( y ) ) )
+            if time == 'seconds':
+                x = x / self.sr
+            ax[ idx ].plot( x, y, **plot_kwargs.get( tier ) )
+            ax[ idx ].set(
+                ylabel = tier,
+                ylim = get_plot_limits( y ),
+                )
+        if time == 'seconds':
+            ax[ -1 ].set( xlabel = 'Time [s]' )
+        else:
+            ax[ -1 ].set( xlabel = 'Frame' )
+        #ax[ 0 ].label_outer()
+        finalize_plot(
+            figure,
+            ax,
+            **kwargs,
+            )
+        return ax
+
+    def resample(
+            self,
+            #orig_sr = 400,
+            target_sr,
+            edge_factor = 10,
+            ):
+        n_edge_samples = int( self.sr * edge_factor )
+        orig_sr = self.sr
+        tile_1 = np.tile( self.series.iloc[0], reps = ( n_edge_samples, 1 ) )
+        tile_2 = np.tile( self.series.iloc[-1], reps = ( n_edge_samples, 1 ) )
+        #tile_1 = np.zeros( ( n_edge_samples, self.series.shape[1] ) )
+        #tile_2 = np.zeros( ( n_edge_samples, self.series.shape[1] ) )
+        middle = self.to_numpy( transpose = False )
+
+        #make a min-max normalization
+        #min_val = np.min( middle, axis = 0 )
+        #max_val = np.max( middle, axis = 0 )
+        #middle = ( middle - min_val ) / ( max_val - min_val )
+        #print( tile_1.shape, middle.shape, tile_2.shape )
+        ms = np.concatenate(
+            [
+                tile_1,
+                middle,
+                tile_2,
+                ],
+            axis = 0,
+            )
+        #print( 'concat ms', ms.shape )
+        mean = np.mean(ms, axis=0)
+        #std = np.std(ms, axis=0)
+        ms = ms - mean
+        
+        ms_res = resampy.resample(
+            ms,
+            orig_sr,
+            target_sr,
+            axis = 0,
+            filter = 'kaiser_best',
+            )
+        
+        # TODO implement length fix like in librosa
+
+        #ms_res = F.resample(
+        #    waveform = torch.from_numpy( ms ),
+        #    orig_freq = orig_sr,
+        #    new_freq = target_sr,
+        #    lowpass_filter_width=64,
+        #    rolloff=0.9475937167399596,
+        #    resampling_method="kaiser_window",
+        #    beta=14.769656459379492,
+        #    )
+
+        #print( ms_res.shape )
+        #sto
+
+        ms_res = ms_res + mean
+
+        n_edge_res = int( round( n_edge_samples / ( orig_sr / target_sr ) ) )
+        #n_edge_res = int( n_edge_samples / ( orig_sr / target_sr ) ) # leads to offset errors due to rounding
+        ms_res = ms_res[ n_edge_res: -n_edge_res, : ]
+
+        ##de-normalize
+        #ms_res = ( ms_res * std ) + mean
+        #ms_res = ( ms_res * ( max_val - min_val ) ) + min_val
+        #ms_res = ms_res + mean
+
+        #print( 'final shape: ', ms_res.shape )
+
+        self.series = pd.DataFrame( ms_res, columns = self.tiers() )
+        self.sr = target_sr
+        return
+    
+    def save(
+            self,
+            file_path: str,
+            ):
+        if file_path.endswith( '.npy' ):
+            self.to_numpy( file_path )
+        elif file_path.endswith( '.yaml' ):
+            self.to_yaml( file_path )
+        elif file_path.endswith( '.yaml.gz' ):
+            self.to_yaml( file_path, compress=True )
+        elif file_path.endswith( '.srs' ):
+            self.to_yaml(
+                file_path,
+                compress=True,
+                fix_extension=False,
+                )
+        else:
+            raise ValueError(
+                f"""
+                The file extension is not supported: {file_path}
+                """
+                )
+        return
     
     def tiers( self ):
         return self.series.columns.tolist()
+    
+    def to_dict(
+            self,
+            ):
+        x = dict(
+            series = self.series.to_dict( orient = 'list' ),
+            sr = self.sr,
+            )
+        return x
+    
+    def to_yaml(
+            self,
+            file_path,
+            compress = False,
+            fix_extension = True,
+            ):
+        x = self.to_dict()
+
+        if fix_extension:
+            if compress and not file_path.endswith( '.yaml.gz' ):
+                file_path = Path( file_path ).stem + '.yaml.gz'
+            elif not compress and not file_path.endswith( '.yaml' ):
+                file_path = Path( file_path ).stem + '.yaml'
+
+        make_path( file_path )
+
+        if compress:
+            with gzip.open( file_path, 'wt' ) as f:
+                yaml.dump( x, f, sort_keys=False )
+        else:
+            with open( file_path, 'w' ) as f:
+                yaml.dump( x, f, sort_keys=False )
+        return

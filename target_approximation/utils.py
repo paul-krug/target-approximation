@@ -1,5 +1,7 @@
 
 
+
+import os
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
@@ -153,4 +155,14 @@ def finalize_plot(
             plt.savefig( out_file_path )
         if show:
             plt.show()
+    return
+
+def make_path( path ):
+    if not os.path.exists(
+        os.path.dirname( path )
+        ):
+        os.makedirs(
+            os.path.dirname( path ),
+            exist_ok=True,
+            )
     return

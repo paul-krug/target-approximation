@@ -118,21 +118,29 @@ class MotorSeries( TargetSeries ):
             file_path: str,
             sr = None,
             ):
-        if file_path.endswith( '.npy' ):
-            #series = np.load( file_path )
-            pass
-        elif any( [
-                file_path.endswith( ext )
-                for ext in ms_file_extensions
-                ] ):
-            ms = MotorSequence.load( file_path )
-            mss = ms.to_series( sr = sr )
-        elif file_path.endswith( '.csv' ):
-            mss = pd.read_csv( file_path )
-        else:
-            raise ValueError(
-                f'Unsupported file extension: {file_path}'
-                )
+        try:
+            return super().load( file_path )
+        except ValueError:   
+            if file_path.endswith( '.npy' ):
+                #series = np.load( file_path )
+                pass
+            elif any( [
+                    file_path.endswith( ext )
+                    for ext in ms_file_extensions
+                    ] ):
+                ms = MotorSequence.load( file_path )
+                mss = ms.to_series( sr = sr )
+            elif file_path.endswith( '.csv' ):
+                mss = pd.read_csv( file_path )
+            elif file_path.endswith( '.tsq' ):
+                mss = cls.from_vtl_tractseq(
+                    file_path,
+                    sr = sr,
+                    )
+            else:
+                raise ValueError(
+                    f'Unsupported file extension: {file_path}'
+                    )
         return cls( mss, sr = sr )
     
     @classmethod
@@ -145,13 +153,15 @@ class MotorSeries( TargetSeries ):
             sr = 44100/110
         df_vtp = pd.read_csv(
             path,
-            delim_whitespace = True,
+            #delim_whitespace = True,#deprecated
+            sep='\s+',
             skiprows= lambda x: _tract_params_from_vtl_tractseq(x),
             header = None,
             )
         df_glp = pd.read_csv(
             path,
-            delim_whitespace = True,
+            #delim_whitespace = True,
+            sep='\s+',
             skiprows= lambda x: _glottis_params_from_vtl_tractseq(x),
             header = None,
             )

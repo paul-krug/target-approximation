@@ -14,6 +14,8 @@ from target_approximation.vocaltractlab.utils import _glottis_params_from_vtl_tr
 
 from target_approximation.core import TargetSequence
 from target_approximation.core import TargetSeries
+from target_approximation.tensortract import MotorSequence as TT_MSQ
+from target_approximation.tensortract import MotorSeries as TT_MSRS
 
 
 
@@ -119,9 +121,9 @@ class MotorSeries( TargetSeries ):
             sr = None,
             ):
         try:
-            return super().load( file_path )
+            return super().load( file_path, sr=sr )
         except ValueError:   
-            if file_path.endswith( '.npy' ):
+            if file_path.endswith( '.xx' ):
                 #series = np.load( file_path )
                 pass
             elif any( [
@@ -194,3 +196,29 @@ class MotorSeries( TargetSeries ):
             )
         
         return gs
+    
+    def save(
+            self,
+            file_path: str,
+            as_type = 'vtl',
+            **kwargs,
+            ):
+        if as_type in [ 'tt', 'tensortract' ]:
+            tt_ms = self.to_tt( **kwargs )
+            tt_ms.save( file_path )
+        elif as_type in [ 'vtl', 'vocaltractlab' ]:
+            super().save( file_path )
+        else:
+            raise ValueError(
+                f'Unsupported arg as_type: {as_type}'
+                )
+        return
+    
+    def to_tt(
+            self,
+            target_sr = 50,
+            ):
+        x = TT_MSRS( self )
+        x.resample( target_sr )
+        return x
+    

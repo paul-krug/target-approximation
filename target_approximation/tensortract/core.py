@@ -97,7 +97,7 @@ class MotorSeries( TargetSeries ):
             self,
             series: np.ndarray,
             sr: float = None,
-            sg_set = 'default',
+            sg_set = 'jd3',
             g_set = 'default',
             ):
         tiers = tt_sg_tiers[ sg_set ] + tt_g_tiers[ g_set ]
@@ -116,22 +116,25 @@ class MotorSeries( TargetSeries ):
             file_path: str,
             sr = None,
             ):
-        if file_path.endswith( '.npy' ):
-            #series = np.load( file_path )
-            pass
-        elif any( [
-                file_path.endswith( ext )
-                for ext in ms_file_extensions
-                ] ):
-            ms = MotorSequence.load( file_path )
-            mss = ms.to_series( sr = sr )
-        elif file_path.endswith( '.csv' ):
-            mss = pd.read_csv( file_path )
-        else:
-            raise ValueError(
-                f'Unsupported file extension: {file_path}'
-                )
-        return cls( mss, sr = sr )
+        try:
+            return super().load( file_path, sr=sr )
+        except ValueError:   
+            if file_path.endswith( '.xx' ):
+                #series = np.load( file_path )
+                pass
+            elif any( [
+                    file_path.endswith( ext )
+                    for ext in ms_file_extensions
+                    ] ):
+                ms = MotorSequence.load( file_path )
+                mss = ms.to_series( sr = sr )
+            elif file_path.endswith( '.csv' ):
+                mss = pd.read_csv( file_path )
+            else:
+                raise ValueError(
+                    f'Unsupported file extension: {file_path}'
+                    )
+            return cls( mss, sr = sr )
     
     def tract( self ):
         x = self.series[ tt_sg_tiers[ self.sg_set ] ]

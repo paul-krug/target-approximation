@@ -673,6 +673,8 @@ class TargetSeries():
                         tiers: {tiers}
                         """
                         )
+            else:
+                tiers = series.tiers()
             if sr is not None and sr != series.sr:
                 raise ValueError(
                     f"""
@@ -680,9 +682,9 @@ class TargetSeries():
                     match the sampling rate provided as an argument.
                     """
                     )
-            tiers = series.tiers()
+
             sr = series.sr
-            series = series.to_numpy( transpose = False)
+            series = series[ tiers ].to_numpy()
         
         elif not isinstance( series, np.ndarray ):
             try:
@@ -821,15 +823,6 @@ class TargetSeries():
                 The file extension is not supported: {file_path}
                 """
                 )
-    
-    def to_numpy(
-            self,
-            transpose = True,
-            ):
-        x = self.series.to_numpy()
-        if transpose:
-            x = x.T
-        return x
 
     def plot(
             self,
@@ -921,6 +914,9 @@ class TargetSeries():
             target_sr,
             edge_factor = 10,
             ):
+        if target_sr == self.sr:
+            return
+        
         n_edge_samples = int( self.sr * edge_factor )
         orig_sr = self.sr
         tile_1 = np.tile( self.series.iloc[0], reps = ( n_edge_samples, 1 ) )
@@ -991,8 +987,10 @@ class TargetSeries():
             self,
             file_path: str,
             ):
+        make_path( file_path )
         if file_path.endswith( '.npy' ):
-            self.to_numpy( file_path )
+            x = self.to_numpy( transpose = False )
+            np.save( file_path, x )
         elif file_path.endswith( '.yaml' ):
             self.to_yaml( file_path )
         elif file_path.endswith( '.yaml.gz' ):
@@ -1021,6 +1019,15 @@ class TargetSeries():
             series = self.series.to_dict( orient = 'list' ),
             sr = self.sr,
             )
+        return x
+    
+    def to_numpy(
+            self,
+            transpose = True,
+            ):
+        x = self.series.to_numpy()
+        if transpose:
+            x = x.T
         return x
     
     def to_yaml(

@@ -983,6 +983,17 @@ class TargetSeries():
         self.sr = target_sr
         return
     
+    def time_stretch(
+            self,
+            factor: float,
+            ):
+        # time stretch by resampling and keeping sr
+        current_sr = self.sr
+        target_sr = int( current_sr * (1/factor) )
+        self.resample( target_sr=target_sr )
+        self.sr = current_sr
+        return
+    
     def save(
             self,
             file_path: str,

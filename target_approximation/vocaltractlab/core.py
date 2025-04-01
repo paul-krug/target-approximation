@@ -11,6 +11,7 @@ from target_approximation.vocaltractlab.utils import glottal_tiers as vtl_g_tier
 from target_approximation.vocaltractlab.utils import ms_file_extensions
 from target_approximation.vocaltractlab.utils import _tract_params_from_vtl_tractseq
 from target_approximation.vocaltractlab.utils import _glottis_params_from_vtl_tractseq
+from target_approximation.vocaltractlab.utils import st_to_hz, hz_to_st
 
 from target_approximation.core import TargetSequence
 from target_approximation.core import TargetSeries
@@ -94,6 +95,16 @@ class GlottalSeries( TargetSeries ):
             sr,
             tiers,
             )
+        return
+    
+    def pitch_shift(
+            self,
+            x: float,
+        ):
+        # pitch shift is in semitones
+        f0_st = hz_to_st(self.series[ 'F0' ])
+        f0_shifted = f0_st + x
+        self.series[ 'F0' ] = st_to_hz( f0_shifted )
         return
     
 class MotorSeries( TargetSeries ):
@@ -221,4 +232,14 @@ class MotorSeries( TargetSeries ):
         x = TT_MSRS( self )
         x.resample( target_sr )
         return x
+    
+    def pitch_shift(
+            self,
+            x: float,
+        ):
+        # pitch shift is in semitones
+        f0_st = hz_to_st(self.series[ 'F0' ])
+        f0_shifted = f0_st + x
+        self.series[ 'F0' ] = st_to_hz( f0_shifted )
+        return
     

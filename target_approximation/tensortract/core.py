@@ -9,6 +9,7 @@ from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
 from target_approximation.tensortract.utils import supraglottal_tiers as tt_sg_tiers
 from target_approximation.tensortract.utils import glottal_tiers as tt_g_tiers
 from target_approximation.tensortract.utils import ms_file_extensions
+from target_approximation.tensortract.utils import st_to_hz, hz_to_st
 
 from target_approximation.core import TargetSequence
 from target_approximation.core import TargetSeries
@@ -92,6 +93,16 @@ class GlottalSeries( TargetSeries ):
             )
         return
     
+    def pitch_shift(
+            self,
+            x: float,
+        ):
+        # pitch shift is in semitones
+        f0_st = st_to_hz(self.series[ 'F0' ])
+        f0_shifted = f0_st + x
+        self.series[ 'F0' ] = f0_shifted
+        return
+    
 class MotorSeries( TargetSeries ):
     def __init__(
             self,
@@ -157,3 +168,13 @@ class MotorSeries( TargetSeries ):
             )
         
         return gs
+    
+    def pitch_shift(
+            self,
+            x: float,
+        ):
+        # pitch shift is in semitones
+        f0_st = hz_to_st(self.series[ 'F0' ])
+        f0_shifted = f0_st + x
+        self.series[ 'F0' ] = st_to_hz( f0_shifted )
+        return

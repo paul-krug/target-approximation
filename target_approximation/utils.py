@@ -11,6 +11,10 @@ from tools_io import is_iterable
 import yaml
 
 
+TSFL_1 = '# The first two lines (below the comment lines) indicate '
+TSFL_2 = 'the name of the vocal fold model and the number of states.\n'
+TRACT_SEQ_FIRST_LINE = TSFL_1 + TSFL_2
+
 
 hist_kwargs = dict(
     bins = 50,
@@ -241,19 +245,6 @@ def file_type_from_meta_data( file_path ):
             and data is the data of the file, just like before.
             """
             )
-        #if 'series' in x.keys() and 'sr' in x.keys():
-        #    if set( x[ 'series' ].keys() ) == set( vtl_tiers ):
-        #        ft = 'vtl_motor_series'
-        #    elif set( x[ 'series' ].keys() ) == set( tt_tiers ):
-        #        ft = 'tt_motor_series'
-        #    elif set( x[ 'series' ].keys() ) == set( vtl_sg_tiers[ 'default' ] ):
-        #        ft = 'vtl_supraglottal_series'
-        #    elif set( x[ 'series' ].keys() ) == set( tt_sg_tiers[ 'jd3' ] ):
-        #        ft = 'tt_supraglottal_series'
-        #    else:
-        #        ft = 'unknown'
-        #else:
-
     return ft
 
 def is_tract_seq_file( file_path ):

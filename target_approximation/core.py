@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from copy import deepcopy
 from pathlib import Path
+from importlib.metadata import version
 
 from typing import List, Optional, Dict, Any, Union, Tuple, Iterable
 try:
@@ -26,6 +27,7 @@ from target_approximation.utils import get_plot_limits
 from target_approximation.utils import state_hist_kwargs
 from target_approximation.utils import get_valid_tiers
 from target_approximation.utils import make_path
+from target_approximation.utils import get_file_type
 
 
 
@@ -95,6 +97,8 @@ class TargetSequence():
         self.normalize()
 
         #self.onset_state
+
+        self.file_type = 'target_sequence'
 
         return
     
@@ -276,8 +280,12 @@ class TargetSequence():
     
     @classmethod
     def from_dict( cls, x ):
+        if 'data' in x.keys():
+            data = x[ 'data' ]
+        else:
+            data = x
         targets = dict()
-        for tier, tgs in x.items():
+        for tier, tgs in data.items():
             targets[ tier ] = [
                     Target( **tg )
                     for tg in tgs
@@ -299,6 +307,14 @@ class TargetSequence():
             cls,
             file_path: str,
             ):
+        ft = get_file_type( file_path )
+        if ft != 'target_sequence':
+            raise ValueError(
+                f"""
+                Attempting to load a target sequence from the file {file_path},
+                however the file contains a different file type: {ft}.
+                """
+                )
         if file_path.endswith( '.yaml' ):
             return cls.from_yaml( file_path )
         elif file_path.endswith( '.yaml.gz' ):
@@ -315,9 +331,17 @@ class TargetSequence():
     def to_dict(
             self,
             ):
-        x = dict()
+        data = dict()
         for tier, tgs in self.targets.items():
-            x[ tier ] = [ tg.to_dict() for tg in tgs ]
+            data[ tier ] = [ tg.to_dict() for tg in tgs ]
+
+        x = dict(
+            meta_data = dict(
+                file_type = self.file_type,
+                ta_version = version( 'target_approximation' ),
+                ),
+            data = data,
+            )
         return x
     
     def to_numpy(
@@ -713,6 +737,8 @@ class TargetSeries():
                 )
         self.series = pd.DataFrame( series, columns = tiers )
         self.sr = sr
+
+        self.file_type = 'target_series'
         
         return
     
@@ -775,9 +801,14 @@ class TargetSeries():
     
     @classmethod
     def from_dict( cls, x ):
-        df = pd.DataFrame( x[ 'series' ] )
+        if 'data' in x.keys():
+            data = x[ 'data' ]
+        else:
+            data = x
+
+        df = pd.DataFrame( data[ 'series' ] )
         series = df.to_numpy()
-        sr = x[ 'sr' ]
+        sr = data[ 'sr' ]
         tiers = df.columns.tolist()
         # following line ensures that the child classes
         # can be loaded correctly from the dict
@@ -798,31 +829,31 @@ class TargetSeries():
     def load(
             cls,
             file_path: str,
-            sr = None,
+            sr: Optional[ int ] = None,
             ):
-        if file_path.endswith( '.npy' ):
+        ft = get_file_type( file_path )
+        if ft == 'target_series':
+            return cls.from_yaml( file_path )
+        elif ft == 'target_sequence':
+            # in this case sr must not be None
             if sr is None:
                 raise ValueError(
                     f"""
-                    The sampling rate must be provided
-                    when loading a TargetSeries from a
-                    .npy file.
+                    You are attempting to load a target series from the file {file_path},
+                    which contains target sequence data. The sampling rate 'sr' must be
+                    provided when loading a target sequence.
                     """
                     )
-            x = np.load( file_path )
-            return cls( x, sr )
-        elif file_path.endswith( '.yaml' ):
-            return cls.from_yaml( file_path )
-        elif file_path.endswith( '.yaml.gz' ):
-            return cls.from_yaml( file_path )
-        elif file_path.endswith( '.srs' ):
-            return cls.from_yaml( file_path, compress = True )
+            ts = TargetSequence.load( file_path )
+            return cls.from_sequence( ts, sr = sr )
         else:
             raise ValueError(
                 f"""
-                The file extension is not supported: {file_path}
+                Attempting to load a target series from the file {file_path},
+                however the file contains a different file type: {ft}.
                 """
                 )
+        return
 
     def plot(
             self,
@@ -1026,10 +1057,19 @@ class TargetSeries():
     def to_dict(
             self,
             ):
-        x = dict(
+        data = dict(
             series = self.series.to_dict( orient = 'list' ),
             sr = self.sr,
             )
+        
+        x = dict(
+            meta_data = dict(
+                file_type = self.file_type,
+                ta_version = version( 'target_approximation' ),
+                ),
+            data = data,
+            )
+        
         return x
     
     def to_numpy(

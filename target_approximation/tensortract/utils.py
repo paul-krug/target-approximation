@@ -2,25 +2,9 @@ import numpy as np
 
 supraglottal_tiers = dict(
     jd3 =[
-        'HX',
-        'HY',
-        'JX',
-        'JA',
-        'LP',
-        'LD',
-        'VS',
-        'VO',
-        'TCX',
-        'TCY',
-        'TTX',
-        'TTY',
-        'TBX',
-        'TBY',
-        #'TRX',
-        #'TRY',
-        'TS1',
-        'TS2',
-        'TS3',
+        'HX','HY','JX','JA','LP','LD','VS','VO',
+        'TCX','TCY','TTX','TTY','TBX','TBY',#'TRX',#'TRY',
+        'TS1','TS2','TS3',
         ],
     general =[
         'HX',

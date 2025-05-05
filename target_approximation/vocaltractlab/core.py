@@ -36,6 +36,30 @@ class SupraGlottalSequence( TargetSequence ):
         self.sequence_type = sequence_type
         return
     
+    def __add__( self, other ):
+        if set( self.tiers() ) != set( other.tiers() ):
+            raise ValueError(
+                f"""
+                The tiers of the two target sequences do not match.
+                """
+                )
+        if self.sequence_type != other.sequence_type:
+            raise ValueError(
+                f"""
+                The sequence types of the two target sequences do not match.
+                """
+                )
+        new_tgs = [
+            tgs + other.targets[ tier ]
+            for tier, tgs in self.targets.items()
+        ]
+        return SupraGlottalSequence( new_tgs, sequence_type=self.sequence_type )
+    
+    def _get_data_dict( self ):
+        data = super()._get_data_dict()
+        data[ 'sequence_type' ] = self.sequence_type
+        return data
+    
 class GlottalSequence( TargetSequence ):
     def __init__(
             self,
@@ -49,6 +73,30 @@ class GlottalSequence( TargetSequence ):
             )
         self.sequence_type = sequence_type
         return
+    
+    def __add__( self, other ):
+        if set( self.tiers() ) != set( other.tiers() ):
+            raise ValueError(
+                f"""
+                The tiers of the two target sequences do not match.
+                """
+                )
+        if self.sequence_type != other.sequence_type:
+            raise ValueError(
+                f"""
+                The sequence types of the two target sequences do not match.
+                """
+                )
+        new_tgs = [
+            tgs + other.targets[ tier ]
+            for tier, tgs in self.targets.items()
+        ]
+        return GlottalSequence( new_tgs, sequence_type=self.sequence_type )
+    
+    def _get_data_dict( self ):
+        data = super()._get_data_dict()
+        data[ 'sequence_type' ] = self.sequence_type
+        return data
     
 class MotorSequence( TargetSequence ):
     def __init__(
@@ -64,11 +112,39 @@ class MotorSequence( TargetSequence ):
         self.sequence_type = sequence_type
         return
     
+    def __add__( self, other ):
+        if set( self.tiers() ) != set( other.tiers() ):
+            raise ValueError(
+                f"""
+                The tiers of the two target sequences do not match.
+                """
+                )
+        if self.sequence_type != other.sequence_type:
+            raise ValueError(
+                f"""
+                The sequence types of the two target sequences do not match.
+                """
+                )
+        new_tgs = [
+            tgs + other.targets[ tier ]
+            for tier, tgs in self.targets.items()
+        ]
+        return MotorSequence( new_tgs, sequence_type=self.sequence_type )
+    
+    def _get_data_dict( self ):
+        data = super()._get_data_dict()
+        data[ 'sequence_type' ] = self.sequence_type
+        return data
+    
     def to_series(
             self,
             sr: Optional[ float ] = None,
             ):
-        x = MotorSeries.from_sequence( self, sr )
+        x = MotorSeries.from_sequence(
+            self,
+            sr,
+            series_type=self.sequence_type,
+            )
         return x
 
 class SupraGlottalSeries( TargetSeries ):
@@ -85,8 +161,16 @@ class SupraGlottalSeries( TargetSeries ):
             tiers,
             )
         self.series_type = series_type
-        self.file_type = 'vtl_supraglottal_series'
+        #self.file_type = 'vtl_supraglottal_series'
         return
+    
+    def _get_data_dict( self ):
+        data = dict(
+            series = self.series.to_dict( orient = 'list' ),
+            series_type = self.series_type,
+            sr = self.sr,
+            )
+        return data
     
     @classmethod
     def from_vtl_tractseq(
@@ -119,8 +203,16 @@ class GlottalSeries( TargetSeries ):
             tiers,
             )
         self.series_type = series_type
-        self.file_type = 'glottal_series'
+        #self.file_type = 'glottal_series'
         return
+    
+    def _get_data_dict( self ):
+        data = dict(
+            series = self.series.to_dict( orient = 'list' ),
+            series_type = self.series_type,
+            sr = self.sr,
+            )
+        return data
     
     @classmethod
     def from_vtl_tractseq(
@@ -167,9 +259,17 @@ class MotorSeries( SupraGlottalSeries, GlottalSeries ):
         #self.g_set = g_set
         self.series_type = series_type
 
-        self.file_type = 'motor_series'
+        #self.file_type = 'motor_series'
 
         return
+    
+    def _get_data_dict( self ):
+        data = dict(
+            series = self.series.to_dict( orient = 'list' ),
+            series_type = self.series_type,
+            sr = self.sr,
+            )
+        return data
     
     @classmethod
     def from_vtl_tractseq(

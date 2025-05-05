@@ -98,7 +98,7 @@ class TargetSequence():
 
         #self.onset_state
 
-        self.file_type = 'target_sequence'
+        #self.file_type = 'target_sequence'
 
         return
     
@@ -192,6 +192,13 @@ class TargetSequence():
 
         return '\n'.join( string )
     
+    def _get_data_dict( self ):
+        data = dict()
+        data[ 'targets' ] = dict()
+        for tier, tgs in self.targets.items():
+            data[ 'targets' ][ tier ] = [ tg.to_dict() for tg in tgs ]
+        return data
+    
     @classmethod
     def from_offsets(
             cls,
@@ -200,6 +207,7 @@ class TargetSequence():
             tau: np.ndarray,
             duration: np.ndarray,
             tiers = None,
+            **kwargs,
             ):
         # b should have shape (n_tiers, n_targets) or (n_targets,)
         # tau should have shape (n_tiers, n_targets) or (n_targets,) or (1,)
@@ -228,9 +236,10 @@ class TargetSequence():
         m = np.zeros( b.shape )
         # concat m, b, tau and duration so that shape is ( n_tiers, 4, n_targets )
         data = np.stack( [ m, b, tau, duration ], axis = 1 )
-        kwargs = dict(
-            data = data,
-            )
+        #kwargs = dict(
+        #    data = data,
+        #    )
+        kwargs[ 'data' ] = data
         if tiers is not None:
             kwargs[ 'tiers' ] = tiers
         return cls.from_numpy( **kwargs )
@@ -242,6 +251,7 @@ class TargetSequence():
             onset_time: float = 0.0,
             onset_state: float = None,
             tiers = None,
+            **kwargs,
             ):
         # data should have shape (n_tiers, 4, n_targets)
         if len( data.shape ) != 3:
@@ -271,9 +281,10 @@ class TargetSequence():
                 for target_data in tier.T
                 ]
             )
-        kwargs = dict(
-            targets = targets,
-            )
+        #kwargs = dict(
+        #    targets = targets,
+        #    )
+        kwargs[ 'targets' ] = targets
         if tiers is not None:
             kwargs[ 'tiers' ] = tiers
         return cls( **kwargs )
@@ -284,13 +295,16 @@ class TargetSequence():
             data = x[ 'data' ]
         else:
             data = x
+        targets_dict = data[ 'targets' ]
         targets = dict()
-        for tier, tgs in data.items():
+        for tier, tgs in targets_dict.items():
             targets[ tier ] = [
                     Target( **tg )
                     for tg in tgs
                 ]
-        return cls( targets = targets )
+        # kwargs are all keys from x that are not 'targets'
+        kwargs = { k: v for k, v in data.items() if k not in [ 'targets' ] }
+        return cls( targets = targets, **kwargs )
     
     @classmethod
     def from_yaml( cls, file_path ):
@@ -302,45 +316,45 @@ class TargetSequence():
                 x = yaml.load( f, Loader = yaml.FullLoader )
         return cls.from_dict( x )
     
-    @classmethod
-    def load(
-            cls,
-            file_path: str,
-            ):
-        ft = get_file_type( file_path )
-        if ft != 'target_sequence':
-            raise ValueError(
-                f"""
-                Attempting to load a target sequence from the file {file_path},
-                however the file contains a different file type: {ft}.
-                """
-                )
-        if file_path.endswith( '.yaml' ):
-            return cls.from_yaml( file_path )
-        elif file_path.endswith( '.yaml.gz' ):
-            return cls.from_yaml( file_path )
-        else:
-            raise ValueError(
-                f"""
-                The file extension should be .yaml or .yaml.gz,
-                but got {file_path}.
-                """
-                )
-        return
+    #@classmethod
+    #def load(
+    #        cls,
+    #        file_path: str,
+    #        ):
+    #    ft = get_file_type( file_path )
+    #    if ft != 'target_sequence':
+    #        raise ValueError(
+    #            f"""
+    #            Attempting to load a target sequence from the file {file_path},
+    #            however the file contains a different file type: {ft}.
+    #            """
+    #            )
+    #    if file_path.endswith( '.yaml' ):
+    #        return cls.from_yaml( file_path )
+    #    elif file_path.endswith( '.yaml.gz' ):
+    #        return cls.from_yaml( file_path )
+    #    else:
+    #        raise ValueError(
+    #            f"""
+    #            The file extension should be .yaml or .yaml.gz,
+    #            but got {file_path}.
+    #            """
+    #            )
+    #    return
     
     def to_dict(
             self,
             ):
-        data = dict()
-        for tier, tgs in self.targets.items():
-            data[ tier ] = [ tg.to_dict() for tg in tgs ]
+        #data = dict()
+        #for tier, tgs in self.targets.items():
+        #    data[ tier ] = [ tg.to_dict() for tg in tgs ]
 
         x = dict(
             meta_data = dict(
-                file_type = self.file_type,
+                file_type = str( type( self ) ),
                 ta_version = version( 'target_approximation' ),
                 ),
-            data = data,
+            data = self._get_data_dict(),
             )
         return x
     
@@ -720,6 +734,7 @@ class TargetSeries():
                     or must be convertible to a numpy array.
                     """
                     )
+            
         if len( series.shape ) == 1:
             series = series.reshape( -1, len( tiers ) )
         if tiers is None:
@@ -738,7 +753,7 @@ class TargetSeries():
         self.series = pd.DataFrame( series, columns = tiers )
         self.sr = sr
 
-        self.file_type = 'target_series'
+        #self.file_type = 'target_series'
         
         return
     
@@ -783,18 +798,28 @@ class TargetSeries():
         self.series[ index ] = value
         return
     
+    def _get_data_dict( self ):
+        data = dict(
+            series = self.series.to_dict( orient = 'list' ),
+            sr = self.sr,
+            )
+        return data
+    
     @classmethod
     def from_sequence(
             cls,
             sequence: TargetSequence,
             sr: float = None,
             tiers: List[ str ] = None,
+            **kwargs,
             ):
         x = sequence.to_numpy( sr = sr )
-        kwargs = dict(
-            series = x.T,
-            sr = sr,
-            )
+        #kwargs = dict(
+        #    series = x.T,
+        #    sr = sr,
+        #    )
+        kwargs[ 'series' ] = x.T
+        kwargs[ 'sr' ] = sr
         if tiers is not None:
             kwargs[ 'tiers' ] = tiers
         return cls( **kwargs )
@@ -813,7 +838,9 @@ class TargetSeries():
         # following line ensures that the child classes
         # can be loaded correctly from the dict
         tgs = TargetSeries( series, sr, tiers )
-        return cls( series = tgs )
+        # kwargs are all keys from x that are not 'series' or 'sr'
+        kwargs = { k: v for k, v in data.items() if k not in [ 'series', 'sr' ] }
+        return cls( series = tgs, **kwargs )
     
     @classmethod
     def from_yaml( cls, file_path ):
@@ -825,35 +852,35 @@ class TargetSeries():
                 x = yaml.load( f, Loader = yaml.FullLoader )
         return cls.from_dict( x )
     
-    @classmethod
-    def load(
-            cls,
-            file_path: str,
-            sr: Optional[ int ] = None,
-            ):
-        ft = get_file_type( file_path )
-        if ft == 'target_series':
-            return cls.from_yaml( file_path )
-        elif ft == 'target_sequence':
-            # in this case sr must not be None
-            if sr is None:
-                raise ValueError(
-                    f"""
-                    You are attempting to load a target series from the file {file_path},
-                    which contains target sequence data. The sampling rate 'sr' must be
-                    provided when loading a target sequence.
-                    """
-                    )
-            ts = TargetSequence.load( file_path )
-            return cls.from_sequence( ts, sr = sr )
-        else:
-            raise ValueError(
-                f"""
-                Attempting to load a target series from the file {file_path},
-                however the file contains a different file type: {ft}.
-                """
-                )
-        return
+    #@classmethod
+    #def load(
+    #        cls,
+    #        file_path: str,
+    #        sr: Optional[ int ] = None,
+    #        ):
+    #    ft = get_file_type( file_path )
+    #    if ft == 'target_series':
+    #        return cls.from_yaml( file_path )
+    #    elif ft == 'target_sequence':
+    #        # in this case sr must not be None
+    #        if sr is None:
+    #            raise ValueError(
+    #                f"""
+    #                You are attempting to load a target series from the file {file_path},
+    #                which contains target sequence data. The sampling rate 'sr' must be
+    #                provided when loading a target sequence.
+    #                """
+    #                )
+    #        ts = TargetSequence.load( file_path )
+    #        return cls.from_sequence( ts, sr = sr )
+    #    else:
+    #        raise ValueError(
+    #            f"""
+    #            Attempting to load a target series from the file {file_path},
+    #            however the file contains a different file type: {ft}.
+    #            """
+    #            )
+    #    return
 
     def plot(
             self,
@@ -901,7 +928,7 @@ class TargetSeries():
         #    ax.label_outer()
         #if figure is not None:
         finalize_plot( figure, axs, hide_labels = False, **kwargs )
-        return axs
+        return figure, axs
     
     def plot_trajectories(
             self,
@@ -1057,17 +1084,13 @@ class TargetSeries():
     def to_dict(
             self,
             ):
-        data = dict(
-            series = self.series.to_dict( orient = 'list' ),
-            sr = self.sr,
-            )
-        
+
         x = dict(
             meta_data = dict(
-                file_type = self.file_type,
+                file_type = str( type( self ) ),
                 ta_version = version( 'target_approximation' ),
                 ),
-            data = data,
+            data = self._get_data_dict(),
             )
         
         return x

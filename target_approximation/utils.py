@@ -9,6 +9,7 @@ from tools_io import check_if_list_is_valid
 from tools_io import make_output_path
 from tools_io import is_iterable
 import yaml
+import gzip
 
 
 TSFL_1 = '# The first two lines (below the comment lines) indicate '
@@ -195,8 +196,12 @@ def get_file_type( file_path ):
     
 def file_type_from_meta_data( file_path ):
     try:
-        with open( file_path, 'r' ) as f:
-            x = yaml.load( f, Loader = yaml.FullLoader )
+        if file_path.endswith( '.yaml.gz' ):
+            with gzip.open( file_path, 'rt' ) as f:
+                x = yaml.load( f, Loader = yaml.FullLoader )
+        else:
+            with open( file_path, 'r' ) as f:
+                x = yaml.load( f, Loader = yaml.FullLoader )
     except Exception:
         raise ValueError(
             f"""
